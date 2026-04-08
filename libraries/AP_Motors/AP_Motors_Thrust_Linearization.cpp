@@ -104,7 +104,7 @@ Thrust_Linearization::Thrust_Linearization(AP_Motors& _motors) :
 float Thrust_Linearization::thrust_to_actuator(float thrust_in) const
 {
     thrust_in = constrain_float(thrust_in, 0.0, 1.0);
-    return spin_min + (spin_max - spin_min) * apply_smeur(thrust_in); // xld 260329
+    return spin_min + (spin_max - spin_min) * apply_thrust_curve_and_volt_scaling(thrust_in); // xld 260329
 }
 
 // inverse of above, tested with AP_Motors/examples/expo_inverse_test

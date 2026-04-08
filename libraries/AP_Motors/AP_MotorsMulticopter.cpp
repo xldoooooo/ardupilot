@@ -28,7 +28,7 @@
 
 extern const AP_HAL::HAL& hal;
 
-// parameters for the motor class
+// 电机相关的参数
 const AP_Param::GroupInfo AP_MotorsMulticopter::var_info[] = {
     // 0 was used by TB_RATIO
     // 1,2,3 were used by throttle curve
@@ -247,7 +247,7 @@ const AP_Param::GroupInfo AP_MotorsMulticopter::var_info[] = {
     AP_GROUPEND
 };
 
-// Constructor
+// 构造函数
 AP_MotorsMulticopter::AP_MotorsMulticopter(uint16_t speed_hz) :
                 AP_Motors(speed_hz),
                 _throttle_limit(1.0f)
@@ -255,31 +255,31 @@ AP_MotorsMulticopter::AP_MotorsMulticopter(uint16_t speed_hz) :
     AP_Param::setup_object_defaults(this, var_info);
 };
 
-// output - sends commands to the motors
+// 将当前电机输出发送到电调
 void AP_MotorsMulticopter::output()
 {
-    // update throttle filter
+    // 更新油门输入滤波器
     update_throttle_filter();
 
-    // calc filtered battery voltage and lift_max
+    // 计算滤波后的电池电压和最大升力
     thr_lin.update_lift_max_from_batt_voltage();
 
-    // run spool logic
+    // 运行电机输出逻辑
     output_logic();
 
-    // calculate thrust
+    // 根据_roll_in,_pitch_in,_yaw_in,get_throttle()计算电机推力_thrust_rpyt_out
     output_armed_stabilizing();
 
-    // apply any thrust compensation for the frame
+    // 施加推力补偿（四旋翼不用）
     thrust_compensation();
 
-    // convert rpy_thrust values to pwm
+    // 将_thrust_rpyt_out值转化为电机pwm
     output_to_motors();
-
+    
     // output any booster throttle
     output_boost_throttle();
 
-    // output raw roll/pitch/yaw/thrust
+    // 输出 roll/pitch/yaw/thrust 控制量用于调试
     output_rpyt();
 
     // check for any external limit flags
@@ -289,7 +289,7 @@ void AP_MotorsMulticopter::output()
     _motor_mask_override = 0;
 };
 
-// update external limits from scripting
+// 根据脚本更新外部限制
 void AP_MotorsMulticopter::update_external_limits()
 {
 #if AP_SCRIPTING_ENABLED
@@ -302,7 +302,7 @@ void AP_MotorsMulticopter::update_external_limits()
 #endif
 }
 
-// output booster throttle, if any
+// 如果_boost_scale > 0，则将主油门乘以_boost_scale并输出到k_boost_throttle通道
 void AP_MotorsMulticopter::output_boost_throttle(void)
 {
     if (_boost_scale > 0) {
@@ -313,7 +313,7 @@ void AP_MotorsMulticopter::output_boost_throttle(void)
     }
 }
 
-// output roll/pitch/yaw/thrust
+// 输出 roll/pitch/yaw/thrust 用于调试
 void AP_MotorsMulticopter::output_rpyt(void)
 {
     SRV_Channels::set_output_scaled(SRV_Channel::k_roll_out, _roll_in_ff * 4500);
@@ -322,7 +322,7 @@ void AP_MotorsMulticopter::output_rpyt(void)
     SRV_Channels::set_output_scaled(SRV_Channel::k_thrust_out, get_throttle() * 1000);
 }
 
-// sends minimum values out to the motors
+// 设置状态为SHUT_DOWN，然后调用output()输出最小油门值
 void AP_MotorsMulticopter::output_min()
 {
     set_desired_spool_state(DesiredSpoolState::SHUT_DOWN);
@@ -330,7 +330,7 @@ void AP_MotorsMulticopter::output_min()
     output();
 }
 
-// update the throttle input filter
+// 更新油门输入滤波器，添加限幅和斜率限制
 void AP_MotorsMulticopter::update_throttle_filter()
 {
     const float last_thr = _throttle_filter.get();
@@ -345,7 +345,7 @@ void AP_MotorsMulticopter::update_throttle_filter()
             _throttle_filter.reset(1.0f);
         }
     } else {
-        // when disarmed, reset filter to 0 so throttle slew resumes from zero on arm
+        // 当解锁时，将滤波器重置为0，以便在解锁时油门斜率从零开始
         _throttle_filter.reset(0.0f);
     }
 
@@ -360,7 +360,7 @@ void AP_MotorsMulticopter::update_throttle_filter()
     _throttle_slew_rate = _throttle_slew_filter.apply(rate, _dt_s);
 }
 
-// return current-limit as a normalised throttle [0..1] within the min..max range
+// 计算当前电池电流与最大允许电流的比率，并基于此比率调整_throttle_limit，从而限制最大油门输出以避免过流
 // returns 1.0 when current limiting is disabled, disarmed, or telemetry is unavailable
 float AP_MotorsMulticopter::get_current_limit_max_throttle()
 {
@@ -424,7 +424,7 @@ float AP_MotorsMulticopter::get_current_limit_max_throttle()
 }
 
 #if HAL_LOGGING_ENABLED
-// 10hz logging of voltage scaling and max trust
+// 10hz 记录电机推力和电池电压等相关信息到日志
 void AP_MotorsMulticopter::Log_Write()
 {
     const struct log_MotBatt pkt_mot {
@@ -441,7 +441,7 @@ void AP_MotorsMulticopter::Log_Write()
 }
 #endif
 
-// convert normalised actuator output (0..1) to pwm
+// 将归一化的执行器输出 (0..1) 转换为 PWM
 // in SHUT_DOWN: output 0 pwm when _disarm_disable_pwm && !armed(), else pwm_min
 // in all other states: map [0..1] linearly between pwm_min and pwm_max
 int16_t AP_MotorsMulticopter::output_to_pwm(float actuator)
@@ -462,7 +462,7 @@ int16_t AP_MotorsMulticopter::output_to_pwm(float actuator)
     return pwm_output;
 }
 
-// slew limiting on motor outputs:
+// 电机输出的斜率限制，默认是无限制的
 // - MOT_SLEW_UP_TIME = time to go 0 -> 1 (s); 0 disables up-slew limiting
 // - MOT_SLEW_DN_TIME = time to go 1 -> 0 (s); 0 disables down-slew limiting
 // - both times are constrained to 0..0.5 s
@@ -496,13 +496,14 @@ void AP_MotorsMulticopter::set_actuator_with_slew(float& actuator_output, float 
     actuator_output = constrain_float(input, output_slew_limit_dn, output_slew_limit_up);
 }
 
-// gradually increase actuator output to spin_min
+// 逐渐增加_spin_up_ratio从0到1，表示电机从停止到最小旋转速度的过渡过程
 // equals _spin_up_ratio * spin_min (constrained to [0..1])
 float AP_MotorsMulticopter::actuator_spin_up_to_ground_idle() const
 {
     return constrain_float(_spin_up_ratio, 0.0f, 1.0f) * thr_lin.get_spin_min();
 }
 
+// 根据电调指令反推电机推力
 // return throttle out for motor motor_num, returns true if value is valid false otherwise
 bool AP_MotorsMulticopter::get_thrust(uint8_t motor_num, float& thr_out) const
 {
@@ -518,7 +519,7 @@ bool AP_MotorsMulticopter::get_thrust(uint8_t motor_num, float& thr_out) const
     return true;
 }
 
-// parameter checks for MOT_PWM_MIN/MAX, returns true if parameters are valid
+// 检查 MOT_PWM_MIN/MAX的有效性，有效则返回true，否则返回false
 bool AP_MotorsMulticopter::check_mot_pwm_params() const
 {
     // _pwm_min is a value greater than or equal to 1.
@@ -530,7 +531,7 @@ bool AP_MotorsMulticopter::check_mot_pwm_params() const
     return true;
 }
 
-// update_throttle_range - update throttle endpoints
+// 更新油门范围
 void AP_MotorsMulticopter::update_throttle_range()
 {
     // if all outputs are digital adjust the range. We also do this for type PWM_RANGE, as those use the
@@ -543,7 +544,7 @@ void AP_MotorsMulticopter::update_throttle_range()
     hal.rcout->set_esc_scaling(get_pwm_output_min(), get_pwm_output_max());
 }
 
-// update the throttle input filter.  should be called at 100hz
+// 更新悬停油门
 void AP_MotorsMulticopter::update_throttle_hover(float dt)
 {
     if (_throttle_hover_learn != HOVER_LEARN_DISABLED) {
@@ -552,28 +553,28 @@ void AP_MotorsMulticopter::update_throttle_hover(float dt)
     }
 }
 
-// set_desired_spool_state - set desired spool state with safety constraints
+// 设置期望的电机状态
 void AP_MotorsMulticopter::set_desired_spool_state(DesiredSpoolState desired)
 {
-    // Safety constraint: disarmed or no interlock means motors must shut down
-    // (multicopters don't use GROUND_IDLE like helis - props must not spin without interlock)
+    // 安全约束：未解锁或无互锁时，电机必须关闭
+    // （多旋翼不使用直升机的GROUND_IDLE - 螺旋桨在没有互锁的情况下不能旋转）
     if (!armed() || !get_interlock()) {
         _spool_desired = DesiredSpoolState::SHUT_DOWN;
         return;
     }
 
-    // No safety constraints active - accept requested state
+    // 在正常操作期间，允许在SHUT_DOWN、GROUND_IDLE和SPOOLING_UP之间切换
     _spool_desired = desired;
 }
 
-// run spool logic
-// advance the motor spool state machine once per cycle
-// enforce arming/interlock and disarm-pwm safe-time guards
-// shape two normalised scalars with monotonic ramps during normal operation
-//  - _spin_up_ratio        controls motor spin/idle shaping
-//  - _throttle_thrust_max  defines the moving throttle ceiling, limited by current draw
-// both values are normalised between 0 and 1
-// zero thrust while !armed() or !get_interlock()
+// 电机输出逻辑，基于当前状态和期望状态更新实际输出
+// 每次调用output()时运行，执行以下功能：
+// 强制执行解锁/互锁和断开PWM安全时间保护
+// 在正常操作期间使用单调斜坡调整两个归一化标量
+//  - _spin_up_ratio        控制电机旋转/空闲整形
+//  - _throttle_thrust_max  定义移动油门上限，受电流限制
+// 两个值都归一化到0到1之间
+// 未解锁或无互锁时，立即强制SHUT_DOWN以确保安全
 // ramps are limited by the configured spool times (see minimum_spool_time)
 // disarm or interlock drop immediately forces SHUT_DOWN for safety
 // pre-takeoff checks and idle-time delay may hold in GROUND_IDLE until cleared
@@ -864,8 +865,8 @@ void AP_MotorsMulticopter::output_logic()
     }
 }
 
-// passes throttle directly to all motors for ESC calibration.
-// throttle_input is in the range of 0 ~ 1 where 0 will send get_pwm_output_min() and 1 will send get_pwm_output_max()
+// 将油门输入直接发送到每个启用的电机，用于电调校准
+// throttle_input 的范围是 0 ~ 1，其中 0 会发送 get_pwm_output_min()，1 会发送 get_pwm_output_max()
 void AP_MotorsMulticopter::set_throttle_passthrough_for_esc_calibration(float throttle_input)
 {
     if (armed()) {
@@ -882,9 +883,7 @@ void AP_MotorsMulticopter::set_throttle_passthrough_for_esc_calibration(float th
     }
 }
 
-// output a thrust to all motors that match a given motor mask. This
-// is used to control tiltrotor motors in forward flight. Thrust is in
-// the range 0 to 1
+// （非四旋翼）输出到电机，应用油门和舵面混合，并将结果转换为PWM输出
 void AP_MotorsMulticopter::output_motor_mask(float thrust, uint32_t mask, float rudder_dt)
 {
     const int16_t pwm_min = get_pwm_output_min();
@@ -913,14 +912,13 @@ void AP_MotorsMulticopter::output_motor_mask(float thrust, uint32_t mask, float 
     }
 }
 
-// get_motor_mask - returns a bitmask of which outputs are being used for motors (1 means being used)
-// this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
+// 返回一个掩码，指示哪些输出通道被配置为电机输出，用于确定哪些通道需要应用电机输出逻辑
 uint32_t AP_MotorsMulticopter::get_motor_mask()
 {
     return SRV_Channels::get_output_channel_mask(SRV_Channel::k_boost_throttle);
 }
 
-// save parameters as part of disarming
+// 在锁定时保存参数，例如悬停油门，以便在下次解锁时使用
 void AP_MotorsMulticopter::save_params_on_disarm()
 {
     // save hover throttle
@@ -929,7 +927,7 @@ void AP_MotorsMulticopter::save_params_on_disarm()
     }
 }
 
-// convert to PWM min and max in the motor lib
+// 将PWM最小值和最大值转换为电机库中的参数
 void AP_MotorsMulticopter::convert_pwm_min_max_param(int16_t radio_min, int16_t radio_max)
 {
     if (_pwm_min.configured() || _pwm_max.configured()) {
@@ -939,6 +937,7 @@ void AP_MotorsMulticopter::convert_pwm_min_max_param(int16_t radio_min, int16_t 
     _pwm_max.set_and_save(radio_max);
 }
 
+// 检查是否满足解锁条件，包括基本的解锁检查和特定于多旋翼的检查，例如确保每个启用的电机都有一个配置的输出通道，以及参数配置的合理性
 bool AP_MotorsMulticopter::arming_checks(size_t buflen, char *buffer) const
 {
     // run base class checks
@@ -976,7 +975,7 @@ bool AP_MotorsMulticopter::arming_checks(size_t buflen, char *buffer) const
     return true;
 }
 
-// return raw throttle out fraction for motor motor_num, returns true if value is valid, false otherwise
+// 返回指定电机的原始油门输出（0～1），如果值有效则返回true，否则返回false
 bool AP_MotorsMulticopter::get_raw_motor_throttle(uint8_t motor_num, float& thr_out) const
 {
     if (motor_num >= AP_MOTORS_MAX_NUM_MOTORS || !motor_enabled[motor_num]) {
@@ -987,6 +986,7 @@ bool AP_MotorsMulticopter::get_raw_motor_throttle(uint8_t motor_num, float& thr_
     return true;
 }
 
+// （非四旋翼）
 #if APM_BUILD_TYPE(APM_BUILD_UNKNOWN)
 // Getters for AP_Motors example, not used by vehicles
 float AP_MotorsMulticopter::get_throttle_avg_max() const

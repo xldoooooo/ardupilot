@@ -346,7 +346,7 @@ AC_AttitudeControl_Multi::AC_AttitudeControl_Multi(AP_AHRS_View &ahrs, AP_Motors
 #endif
 }
 
-// Update Alt_Hold angle maximum
+// 更新定高模式下的最大倾斜角度限制
 void AC_AttitudeControl_Multi::update_althold_lean_angle_max(float throttle_in)
 {
     // calc maximum tilt angle based on throttle

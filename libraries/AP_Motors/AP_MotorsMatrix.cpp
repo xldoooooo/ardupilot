@@ -19,7 +19,7 @@
 
 extern const AP_HAL::HAL& hal;
 
-// init
+// 初始化静态成员变量
 void AP_MotorsMatrix::init(motor_frame_class frame_class, motor_frame_type frame_type)
 {
     // record requested frame class and type
@@ -111,7 +111,7 @@ bool AP_MotorsMatrix::set_throttle_factor(int8_t motor_num, float throttle_facto
 
 #endif // AP_SCRIPTING_ENABLED
 
-// set update rate to motors - a value in hertz
+// set update rate to motors - a value in hertz （490Hz）
 void AP_MotorsMatrix::set_update_rate(uint16_t speed_hz)
 {
     // record requested speed
@@ -126,7 +126,7 @@ void AP_MotorsMatrix::set_update_rate(uint16_t speed_hz)
     rc_set_freq(mask, _speed_hz);
 }
 
-// set frame class (i.e. quad, hexa, heli) and type (i.e. x, plus)
+// 设置机体系类型和类型 (i.e. quad, hexa, heli) 和类型 (i.e. x, plus)
 void AP_MotorsMatrix::set_frame_class_and_type(motor_frame_class frame_class, motor_frame_type frame_type)
 {
     // exit immediately if armed or no change
@@ -140,6 +140,7 @@ void AP_MotorsMatrix::set_frame_class_and_type(motor_frame_class frame_class, mo
 
 }
 
+// 将各电机的期望推力值_thrust_rpyt_out转换为实际输出到电机的PWM值，并发送到电机
 void AP_MotorsMatrix::output_to_motors()
 {
     int8_t i;
@@ -165,16 +166,18 @@ void AP_MotorsMatrix::output_to_motors()
         case SpoolState::SPOOLING_UP:
         case SpoolState::THROTTLE_UNLIMITED:
         case SpoolState::SPOOLING_DOWN:
-            // set motor output based on thrust requests
+            // 基于电机推力计算各电调的输入
             for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
                 if (motor_enabled[i]) {
+                    // set_actuator_with_slew 默认是不做斜率限制的，只做限幅
+                    // thrust_to_actuator 生成各电机的油门比例
                     set_actuator_with_slew(_actuator[i], thr_lin.thrust_to_actuator(_thrust_rpyt_out[i]));
                 }
             }
             break;
     }
 
-    // convert output to PWM and send to each motor
+    // 将计算得到的执行器输出PWM值发送到每个电机
     for (i = 0; i < AP_MOTORS_MAX_NUM_MOTORS; i++) {
         if (motor_enabled[i]) {
             rc_write(i, output_to_pwm(_actuator[i]));
@@ -208,32 +211,31 @@ float AP_MotorsMatrix::boost_ratio(float boost_value, float normal_value) const
     return _thrust_boost_ratio * boost_value + (1.0 - _thrust_boost_ratio) * normal_value;
 }
 
-// output_armed - sends commands to the motors
-// includes new scaling stability patch
+// 根据_roll_in等力矩和推力指令计算各电机推力，存在_thrust_rpyt_out中，包含了新的缩放稳定补丁
 void AP_MotorsMatrix::output_armed_stabilizing()
 {
-    // apply voltage and air pressure compensation
-    const float compensation_gain = thr_lin.get_compensation_gain(); // compensation for battery voltage and altitude
+    // 电压和气压补偿
+    const float compensation_gain = thr_lin.get_compensation_gain();
 
-    // pitch thrust input value, +/- 1.0
+    // 滚转通道力矩输入, +/- 1.0
     const float roll_thrust = (_roll_in + _roll_in_ff) * compensation_gain;
 
-    // pitch thrust input value, +/- 1.0
+    // 俯仰通道力矩输入, +/- 1.0
     const float pitch_thrust = (_pitch_in + _pitch_in_ff) * compensation_gain;
 
-    // yaw thrust input value, +/- 1.0
+    // 偏航通道力矩输入, +/- 1.0
     float yaw_thrust = (_yaw_in + _yaw_in_ff) * compensation_gain;
 
-    // throttle thrust input value, 0.0 - 1.0
+    // 油门通道推力输入, 0.0 - 1.0
     float throttle_thrust = get_throttle() * compensation_gain;
 
-    // throttle thrust average maximum value, 0.0 - 1.0
+    // 油门通道推力平均最大值, 0.0 - 1.0
     float throttle_avg_max = _throttle_avg_max * compensation_gain;
 
-    // throttle thrust maximum value, 0.0 - 1.0, If thrust boost is active then do not limit maximum thrust
+    // 油门通道推力最大值, 0.0 - 1.0, 如果推力增强激活，则不限制最大推力
     const float throttle_thrust_max = boost_ratio(1.0, _throttle_thrust_max * compensation_gain);
 
-    // sanity check throttle is above zero and below current limited throttle
+    // 限制油门输入在0.0 - throttle_thrust_max范围内
     if (throttle_thrust <= 0.0f) {
         throttle_thrust = 0.0f;
         limit.throttle_lower = true;
@@ -243,7 +245,7 @@ void AP_MotorsMatrix::output_armed_stabilizing()
         limit.throttle_upper = true;
     }
 
-    // ensure that throttle_avg_max is between the input throttle and the maximum throttle
+    // 确保 throttle_avg_max 在输入油门和最大油门之间
     throttle_avg_max = constrain_float(throttle_avg_max, throttle_thrust, throttle_thrust_max);
 
     // throttle providing maximum roll, pitch and yaw range

@@ -15,26 +15,28 @@ static void failsafe_check_static()
 
 void Copter::init_ardupilot()
 {
-    // init winch
+
 #if AP_WINCH_ENABLED
+    // init winch
     g2.winch.init();
 #endif
 
-    // initialise notify system
+    // 初始化通知系统
     notify.init();
-    notify_flight_mode();
+    notify_flight_mode(); // 包括蜂鸣器、LED等设备
 
-    // initialise battery monitor
+    // 初始化电池监测
     battery.init();
-
+    
 #if AP_RSSI_ENABLED
-    // Init RSSI
+    // init RSSI
     rssi.init();
 #endif
 
+    // 初始化气压传感器（用于高度测量）
     barometer.init();
 
-    // setup telem slots with serial ports
+    // 设置串口
     gcs().setup_uarts();
 
 #if OSD_ENABLED
@@ -52,7 +54,8 @@ void Copter::init_ardupilot()
     input_manager.set_loop_rate(scheduler.get_loop_rate_hz());
 #endif
 
-    init_rc_in();               // sets up rc channels from radio
+    // 初始化遥控信号接收
+    init_rc_in();
 
 #if AP_RANGEFINDER_ENABLED
     // initialise surface to be tracked in SurfaceTracking
@@ -60,20 +63,20 @@ void Copter::init_ardupilot()
     surface_tracking.init((SurfaceTracking::Surface)copter.g2.surftrak_mode.get());
 #endif
 
-    // allocate the motors class
+    // 根据机架类型分配电机
     allocate_motors();
 
-    // initialise rc channels including setting mode
+    // 初始化遥控通道与功能的映射关系
     rc().convert_options(RC_Channel::AUX_FUNC::ARMDISARM_UNUSED, RC_Channel::AUX_FUNC::ARMDISARM_AIRMODE);
     rc().init();
 
-    // sets up motors and output to escs
+    // 设置PWM输出到电调
     init_rc_out();
 
     // check if we should enter esc calibration mode
     esc_calibration_startup_check();
 
-    // motors initialised so parameters can be sent
+    // 电机初始化完就可以初始化参数了
     ap.initialised_params = true;
 
 #if AP_RELAY_ENABLED
@@ -86,10 +89,10 @@ void Copter::init_ardupilot()
      */
     hal.scheduler->register_timer_failsafe(failsafe_check_static, 1000);
 
-    // Do GPS init
+    // 初始化GPS
     gps.set_log_gps_bit(MASK_LOG_GPS);
     gps.init();
-
+    // 初始化罗盘
     AP::compass().set_log_bit(MASK_LOG_COMPASS);
     AP::compass().init();
 
@@ -101,12 +104,13 @@ void Copter::init_ardupilot()
     g2.oa.init();
 #endif
 
+    // 姿态控制器参数监测
     attitude_control->parameter_sanity_check();
 
 #if AP_OPTICALFLOW_ENABLED
     // initialise optical flow sensor
     optflow.init(MASK_LOG_OPTFLOW);
-#endif      // AP_OPTICALFLOW_ENABLED
+#endif
 
 #if HAL_MOUNT_ENABLED
     // initialise camera mount
@@ -132,8 +136,7 @@ void Copter::init_ardupilot()
     USERHOOK_INIT
 #endif
 
-    // read Baro pressure at ground
-    //-----------------------------
+    // 读取地面上的气压值
     barometer.set_log_baro_bit(MASK_LOG_IMU);
     barometer.calibrate();
 
@@ -153,7 +156,7 @@ void Copter::init_ardupilot()
 #endif
 
 #if MODE_AUTO_ENABLED
-    // initialise mission library
+    // 初始化任务
     mode_auto.mission.init();
 #if HAL_LOGGING_ENABLED
     mode_auto.mission.set_log_start_mission_item_bit(MASK_LOG_CMD);
@@ -166,17 +169,17 @@ void Copter::init_ardupilot()
 #endif
 
 #if HAL_LOGGING_ENABLED
-    // initialise AP_Logger library
+    // initialize AP_Logger library
     logger.setVehicle_Startup_Writer(FUNCTOR_BIND(&copter, &Copter::Log_Write_Vehicle_Startup_Messages, void));
 #endif
 
     startup_INS_ground();
 
 #if AC_CUSTOMCONTROL_MULTI_ENABLED
-    custom_control.init();
+    custom_control.init();  // 初始化定制的控制器
 #endif
 
-    // set landed flags
+    // 设置着陆标志
     set_land_complete(true);
     set_land_complete_maybe(true);
 
@@ -185,18 +188,19 @@ void Copter::init_ardupilot()
 
     ins.set_log_raw_bit(MASK_LOG_IMU_RAW);
 
-    motors->output_min();  // output lowest possible value to motors
+    motors->output_min();  // 输出最小的值给电机
 
-    // attempt to set the initial_mode, else set to STABILIZE
+    // 尝试设为初始模式, 否则设为STABILIZE模式
     if (!set_mode((enum Mode::Number)g.initial_mode.get(), ModeReason::INITIALISED)) {
         // set mode to STABILIZE will trigger mode change notification to pilot
         set_mode(Mode::Number::STABILIZE, ModeReason::UNAVAILABLE);
     }
 
+    // 设置EKF滤波器的截止频率
     pos_variance_filt.set_cutoff_frequency(g2.fs_ekf_filt_hz);
     vel_variance_filt.set_cutoff_frequency(g2.fs_ekf_filt_hz);
 
-    // flag that initialisation has completed
+    // 初始化已完成
     ap.initialised = true;
 }
 

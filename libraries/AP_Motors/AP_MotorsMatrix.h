@@ -14,7 +14,7 @@
 class AP_MotorsMatrix : public AP_MotorsMulticopter {
 public:
 
-    /// Constructor
+    /// 构造函数
     AP_MotorsMatrix(uint16_t speed_hz = AP_MOTORS_SPEED_DEFAULT) :
         AP_MotorsMulticopter(speed_hz)
     {
@@ -24,12 +24,12 @@ public:
         _singleton = this;
     };
 
-    // get singleton instance
+    // 获取单例实例
     static AP_MotorsMatrix *get_singleton() {
         return _singleton;
     }
 
-    // init
+    // 初始化
     virtual void        init(motor_frame_class frame_class, motor_frame_type frame_type) override;
 
 #if AP_SCRIPTING_ENABLED
@@ -41,21 +41,21 @@ public:
 
 #endif // AP_SCRIPTING_ENABLED
 
-    // set frame class (i.e. quad, hexa, heli) and type (i.e. x, plus)
+    // 设置机架类型 (i.e. quad, hexa, heli) 和类型 (i.e. x, plus)
     void                set_frame_class_and_type(motor_frame_class frame_class, motor_frame_type frame_type) override;
 
-    // set update rate to motors - a value in hertz
-    // you must have setup_motors before calling this
+    // 设置电机更新速率 - 以赫兹为单位
+    // 在调用此函数之前必须先设置电机的帧类型和类，因为不同的帧类型和类可能具有不同数量的电机
     void                set_update_rate(uint16_t speed_hz) override;
 
-    // output_test_num - spin a motor connected to the specified output channel
+    //  测试特定电机
     //  (should only be performed during testing)
     //  If a motor output channel is remapped, the mapped channel is used.
     //  Returns true if motor output is set, false otherwise
     //  pwm value is an actual pwm value that will be output, normally in the range of 1000 ~ 2000
     bool                output_test_num(uint8_t motor, int16_t pwm);
 
-    // output_to_motors - sends minimum values out to the motors
+    // 将各电机的期望推力值_thrust_rpyt_out转换为实际输出到电机的PWM值，并发送到电机
     virtual void        output_to_motors() override;
 
     // get_motor_mask - returns a bitmask of which outputs are being used for motors (1 means being used)
