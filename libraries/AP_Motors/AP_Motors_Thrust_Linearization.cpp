@@ -100,11 +100,11 @@ Thrust_Linearization::Thrust_Linearization(AP_Motors& _motors) :
 #endif
 }
 
-// converts desired thrust to linearized actuator output in a range of 0~1
+// 将期望电机推力转化为线性化电机输出（0-1）
 float Thrust_Linearization::thrust_to_actuator(float thrust_in) const
 {
     thrust_in = constrain_float(thrust_in, 0.0, 1.0);
-    return spin_min + (spin_max - spin_min) * apply_thrust_curve_and_volt_scaling(thrust_in);
+    return spin_min + (spin_max - spin_min) * apply_smeur(thrust_in); // xld 260329
 }
 
 // inverse of above, tested with AP_Motors/examples/expo_inverse_test
@@ -115,7 +115,7 @@ float Thrust_Linearization::actuator_to_thrust(float actuator) const
     return constrain_float(remove_thrust_curve_and_volt_scaling(actuator), 0.0, 1.0);
 }
 
-// apply_thrust_curve_and_volt_scaling - returns throttle in the range 0 ~ 1
+// 应用推力曲线和电压放缩推力，区间也在（0-1）
 float Thrust_Linearization::apply_thrust_curve_and_volt_scaling(float thrust) const
 {
     float battery_scale = 1.0;
@@ -130,6 +130,16 @@ float Thrust_Linearization::apply_thrust_curve_and_volt_scaling(float thrust) co
     }
     float throttle_ratio = ((thrust_curve_expo - 1.0) + safe_sqrt((1.0 - thrust_curve_expo) * (1.0 - thrust_curve_expo) + 4.0 * thrust_curve_expo * lift_max * thrust)) / (2.0 * thrust_curve_expo);
     return constrain_float(throttle_ratio * battery_scale, 0.0, 1.0);
+}
+
+// 应用smeur方法生成电调指令，区间也在（0-1），xld 260329
+float Thrust_Linearization::apply_smeur(float thrust) const
+{
+    float kappa = 0.61;
+    kappa = constrain_float(kappa, 0.0, 1.0);
+    float throttle_ratio = safe_sqrt(safe_sqrt(thrust)/kappa + (1-kappa)*(1-kappa)/(4*kappa*kappa))+(kappa-1)/(2*kappa);
+    return constrain_float(throttle_ratio*throttle_ratio, 0.0, 1.0);
+    // return 0.0f; // test 
 }
 
 // inverse of above, tested with AP_Motors/examples/expo_inverse_test
@@ -152,7 +162,7 @@ float Thrust_Linearization::remove_thrust_curve_and_volt_scaling(float throttle)
     return constrain_float(thrust, 0.0, 1.0);
 }
 
-// update_lift_max from battery voltage - used for voltage compensation
+// 根据电池电压更新最大升力，用于电压补偿
 void Thrust_Linearization::update_lift_max_from_batt_voltage()
 {
 #if AP_BATTERY_ENABLED

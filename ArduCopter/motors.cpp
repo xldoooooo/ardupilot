@@ -57,7 +57,7 @@ void Copter::auto_disarm_check()
     }
 }
 
-// motors_output - send output to motors library which will adjust and send to ESCs and servos
+// 将_roll_in、_pitch_in、_yaw_in等输入值转换为电机输出值，并通过hal.rcout->push()发送到电调
 // full_push is true when slower rate updates (e.g. servo output) need to be performed at the main loop rate.
 void Copter::motors_output(bool full_push)
 {
@@ -74,7 +74,7 @@ void Copter::motors_output(bool full_push)
     }
 #endif
 
-    // Update arming delay state
+    // 更新arming延迟状态
     if (ap.in_arming_delay && (!motors->armed() || millis()-arm_time_ms > ARMING_DELAY_SEC*1.0e3f || flightmode->mode_number() == Mode::Number::THROW)) {
         ap.in_arming_delay = false;
     }
@@ -118,7 +118,7 @@ void Copter::motors_output(bool full_push)
     }
 }
 
-// motors_output from main thread at main loop rate
+// 主循环调用的电机输出函数
 void Copter::motors_output_main()
 {
     if (!using_rate_thread) {

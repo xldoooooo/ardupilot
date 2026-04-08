@@ -997,7 +997,7 @@ float Mode::get_avoidance_adjusted_climbrate_ms(float target_rate_ms)
 #endif
 }
 
-// send output to the motors, can be overridden by subclasses
+// 将当前电机输出发送到电调
 void Mode::output_to_motors()
 {
     motors->output();

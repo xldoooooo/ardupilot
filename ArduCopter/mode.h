@@ -101,6 +101,7 @@ public:
         AUTOROTATE =   26,  // Autonomous autorotation
         AUTO_RTL =     27,  // Auto RTL, this is not a true mode, AUTO will report as this mode if entered to perform a DO_LAND_START Landing sequence
         TURTLE =       28,  // Flip over after crash
+        CUSTOM =       29,  // Customized by Lidan Xu, 260321
 
         // Mode number 30 reserved for "offboard" for external/lua control.
 
@@ -2152,3 +2153,26 @@ private:
 
 };
 #endif
+
+class ModeCustom : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+    Number mode_number() const override { return Number::CUSTOM; }
+
+    void run() override;
+
+    bool requires_position() const override;
+    bool has_manual_throttle() const override { return false; }
+    bool allows_arming(AP_Arming::Method method) const override;
+    bool is_autopilot() const override { return true; }
+
+protected:
+
+    const char *name() const override { return "Custom"; }
+    const char *name4() const override { return "CUST"; }
+
+private:
+
+};

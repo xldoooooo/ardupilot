@@ -395,9 +395,7 @@ void SRV_Channels::setup_failsafe_trim_all_non_motors(void)
     }
 }
 
-/*
-  run calc_pwm for all channels
- */
+// 计算所有通道的PWM值
 void SRV_Channels::calc_pwm(void)
 {
     // slew rate limit functions

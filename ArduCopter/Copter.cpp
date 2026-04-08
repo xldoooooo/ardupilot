@@ -111,34 +111,37 @@ SCHED_TASK_CLASS arguments:
 
  */
 const AP_Scheduler::Task Copter::scheduler_tasks[] = {
-    // update INS immediately to get current gyro data populated
+    // 读取IMU原始数据（尽快）
     FAST_TASK_CLASS(AP_InertialSensor, &copter.ins, update),
-    // run low level rate controllers that only require IMU data
+    // 角速率控制器（尽快）
     FAST_TASK(run_rate_controller_main),
+    
 #if AC_CUSTOMCONTROL_MULTI_ENABLED
     FAST_TASK(run_custom_controller),
-#endif
+#endif // 自定义姿态控制器，生成三轴力矩_roll_in（尽快）
+
 #if FRAME_CONFIG == HELI_FRAME
     FAST_TASK(heli_update_autorotation),
-#endif //HELI_FRAME
-    // send outputs to the motors library immediately
+#endif // 直升机相关
+
+    // 更新电机输出（尽快）
     FAST_TASK(motors_output_main),
-     // run EKF state estimator (expensive)
+     // 更新AHRS滤波结果（尽快）
     FAST_TASK(read_AHRS),
 #if FRAME_CONFIG == HELI_FRAME
     FAST_TASK(update_heli_control_dynamics),
 #endif //HELI_FRAME
-    // Inertial Nav
+    // 更新位置估计（尽快）
     FAST_TASK(read_inertia),
-    // check if ekf has reset target heading or position
+    // 检查ekf是否重置（尽快）
     FAST_TASK(check_ekf_reset),
-    // run the attitude controllers
+    // 根据飞行模式执行控制（尽快）
     FAST_TASK(update_flight_mode),
-    // update home from EKF if necessary
+    // 更新家点位置估计（尽快）
     FAST_TASK(update_home_from_EKF),
-    // check if we've landed or crashed
+    // 着陆和碰撞检测（尽快）
     FAST_TASK(update_land_and_crash_detectors),
-    // surface tracking update
+    // 更新地形高度估计（尽快）
     FAST_TASK(update_rangefinder_terrain_offset),
 #if HAL_MOUNT_ENABLED
     // camera mount's fast update
@@ -147,9 +150,9 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
 #if HAL_LOGGING_ENABLED
     FAST_TASK(Log_Video_Stabilisation),
 #endif
-
-    SCHED_TASK(rc_loop,              250,    130,  3),
-    SCHED_TASK(throttle_loop,         50,     75,  6),
+    // 以下是按照优先级顺序的定时任务列表
+    SCHED_TASK(rc_loop,              250,    130,  3), // 遥控器姿态油门模式输入更新
+    SCHED_TASK(throttle_loop,         50,     75,  6), // 油门处理
 #if AP_FENCE_ENABLED
     SCHED_TASK(fence_check,           25,    100,  7),
 #endif
@@ -157,13 +160,16 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
 #if AP_OPTICALFLOW_ENABLED
     SCHED_TASK_CLASS(AP_OpticalFlow,          &copter.optflow,             update,         200, 160,  12),
 #endif
+    // 更新电池和罗盘10Hz
     SCHED_TASK(update_batt_compass,   10,    120, 15),
+    // 遥控器辅助通道更新10Hz
     SCHED_TASK_CLASS(RC_Channels, (RC_Channels*)&copter.g2.rc_channels, read_aux_all,    10,  50,  18),
 #if TOY_MODE_ENABLED
     SCHED_TASK_CLASS(ToyMode,              &copter.g2.toy_mode,         update,          10,  50,  24),
 #endif
     SCHED_TASK(auto_disarm_check,     10,     50,  27),
 #if AP_COPTER_AHRS_AUTO_TRIM_ENABLED
+    // 滚转俯仰自调节
     SCHED_TASK_CLASS(RC_Channels_Copter,   &copter.g2.rc_channels,      auto_trim_run,   10,  75,  30),
 #endif
 #if AP_RANGEFINDER_ENABLED
@@ -175,9 +181,9 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
 #if AP_BEACON_ENABLED
     SCHED_TASK_CLASS(AP_Beacon,            &copter.g2.beacon,           update,         400,  50,  39),
 #endif
-    SCHED_TASK(update_altitude,       10,    100,  42),
-    SCHED_TASK(run_nav_updates,       50,    100,  45),
-    SCHED_TASK(update_throttle_hover,100,     90,  48),
+    SCHED_TASK(update_altitude,       10,    100,  42), // 更新高度估计10Hz
+    SCHED_TASK(run_nav_updates,       50,    100,  45), // 更新简易航向50Hz
+    SCHED_TASK(update_throttle_hover,100,     90,  48), // 更新悬停油门100Hz
 #if MODE_SMARTRTL_ENABLED
     SCHED_TASK_CLASS(ModeSmartRTL,         &copter.mode_smartrtl,       save_position,    3, 100,  51),
 #endif
@@ -186,9 +192,11 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
 #endif
     SCHED_TASK(three_hz_loop,          3,     75, 57),
 #if AP_SERVORELAYEVENTS_ENABLED
+    // 伺服控制
     SCHED_TASK_CLASS(AP_ServoRelayEvents,  &copter.ServoRelayEvents,      update_events, 50,  75,  60),
 #endif
 #if AC_PRECLAND_ENABLED
+    // 更新地面高度
     SCHED_TASK(update_precland,      400,     50,  69),
 #endif
 #if FRAME_CONFIG == HELI_FRAME
@@ -584,7 +592,7 @@ bool Copter::current_mode_requires_mission() const
 }
 
 // rc_loops - reads user input from transmitter/receiver
-// called at 100hz
+// called at 250hz
 void Copter::rc_loop()
 {
     // Read radio and 3-position switch on radio

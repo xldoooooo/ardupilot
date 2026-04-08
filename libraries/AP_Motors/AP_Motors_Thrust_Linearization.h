@@ -14,6 +14,9 @@ public:
     // Apply_thrust_curve_and_volt_scaling - returns throttle in the range 0 ~ 1
     float apply_thrust_curve_and_volt_scaling(float thrust) const;
 
+    // Smeur 从归一化推力到油门，范围 0-1 到范围 0-1, xld 260329
+    float apply_smeur(float thrust) const;
+
     // Inverse of above
     float remove_thrust_curve_and_volt_scaling(float throttle) const;
 

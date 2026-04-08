@@ -14,7 +14,7 @@
 #include <AP_Motors/AP_MotorsMulticopter.h>
 
 #ifndef CUSTOMCONTROL_MAX_TYPES
-#define CUSTOMCONTROL_MAX_TYPES 2
+#define CUSTOMCONTROL_MAX_TYPES 4
 #endif
 
 class AC_CustomControl_Backend;
@@ -28,6 +28,7 @@ public:
     void init(void);
     void update(void);
     void motor_set(Vector3f motor_out);
+    void motors_set(const float motors[AP_MOTORS_MAX_NUM_MOTORS]);
     void set_custom_controller(bool enabled);
     void reset_main_att_controller(void);
     bool is_safe_to_run(void);
@@ -49,6 +50,7 @@ protected:
         CONT_NONE            = 0,
         CONT_EMPTY           = 1,
         CONT_PID             = 2,
+        CONT_INDI            = 3,
     };            // controller that should be used     
 
     enum class  CustomControlOption {

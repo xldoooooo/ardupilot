@@ -90,9 +90,7 @@ void AP_Motors::set_radio_passthrough(float roll_input, float pitch_input, float
     _yaw_radio_passthrough = yaw_input;
 }
 
-/*
-  write to an output channel
- */
+// 将PWM值写入电机输出通道
 void AP_Motors::rc_write(uint8_t chan, uint16_t pwm)
 {
     SRV_Channel::Function function = SRV_Channels::get_motor_function(chan);
