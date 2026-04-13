@@ -2,10 +2,7 @@
 
 #if MODE_GUIDED_ENABLED
 
-/*
- * Init and run calls for guided flight mode
- */
-
+// guided模式的初始化与运行
 static Vector3p guided_pos_target_ned_m;        // position target (used by posvel controller only)
 static bool guided_is_terrain_alt;              // true if guided_pos_target_ned_m.z should be offset by the terrain altitude
 static Vector3f guided_vel_target_ned_ms;       // velocity target (used by pos_vel_accel controller and vel_accel controller)
@@ -32,23 +29,23 @@ struct Guided_Limit {
 
 bool ModeGuided::takeoff_complete;      // true once takeoff has completed (used to trigger retracting of landing gear)
 
-// init - initialise guided controller
+// 初始化
 bool ModeGuided::init(bool ignore_checks)
 {
-    // start in velaccel control mode
+    // 以速度加速度控制模式启动
     velaccel_control_start();
     guided_vel_target_ned_ms.zero();
     guided_accel_target_ned_mss.zero();
     send_notification = false;
 
-    // clear pause state when entering guided mode
+    // 当进入guided模式时，清除暂停状态
     _paused = false;
 
     return true;
 }
 
-// hold_position - bring vehicle to a stop and hold current position
-// using velocity/acceleration control with zero velocity and acceleration targets
+// 在当前位置悬停
+// 以零速/零加速度为控制目标
 void ModeGuided::hold_position()
 {
     // check we are in velocity and acceleration control mode
@@ -59,26 +56,25 @@ void ModeGuided::hold_position()
     guided_accel_target_ned_mss.zero();
 }
 
-// run - runs the guided controller
-// should be called at 100hz or more
+// 以100Hz以上运行
 void ModeGuided::run()
 {
-    // run pause control if the vehicle is paused
+    // 当暂停时，运行pause_control
     if (_paused) {
         pause_control_run();
         return;
     }
 
-    // call the correct auto controller
+    // 唤起自动控制器
     switch (guided_mode) {
 
     case SubMode::TakeOff:
-        // run takeoff controller
+        // 运行起飞控制器
         takeoff_run();
         break;
 
     case SubMode::WP:
-        // run waypoint controller
+        // 运行路径点控制器
         wp_control_run();
         if (send_notification && wp_nav->reached_wp_destination()) {
             send_notification = false;
@@ -87,7 +83,7 @@ void ModeGuided::run()
         break;
 
     case SubMode::Pos:
-        // run position controller
+        // 运行位置控制器
         pos_control_run();
         break;
 
@@ -248,25 +244,25 @@ void ModeGuided::wp_control_run()
     attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), auto_yaw.get_heading());
 }
 
-// initialise position controller
+// 初始化位置控制器
 void ModeGuided::pva_control_start()
 {
-    // initialise horizontal speed, acceleration
+    // 初始化水平速度与加速度
     pos_control->NE_set_max_speed_accel_m(wp_nav->get_default_speed_NE_ms(), wp_nav->get_wp_acceleration_mss());
     pos_control->NE_set_correction_speed_accel_m(wp_nav->get_default_speed_NE_ms(), wp_nav->get_wp_acceleration_mss());
 
-    // initialize vertical speeds and acceleration
+    // 初始化竖直速度与加速度
     pos_control->D_set_max_speed_accel_m(wp_nav->get_default_speed_down_ms(), wp_nav->get_default_speed_up_ms(), wp_nav->get_accel_D_mss());
     pos_control->D_set_correction_speed_accel_m(wp_nav->get_default_speed_down_ms(), wp_nav->get_default_speed_up_ms(), wp_nav->get_accel_D_mss());
 
-    // initialise velocity controller
+    // 初始化速度控制器
     pos_control->D_init_controller();
     pos_control->NE_init_controller();
 
-    // initialise yaw
+    // 初始化偏航角
     auto_yaw.set_mode_to_default(false);
 
-    // initialise terrain alt
+    // 初始化地形高度
     guided_is_terrain_alt = false;
 }
 
@@ -290,13 +286,13 @@ void ModeGuided::accel_control_start()
     pva_control_start();
 }
 
-// initialise guided mode's velocity and acceleration controller
+// 初始化guided模式下的速度加速度控制器
 void ModeGuided::velaccel_control_start()
 {
-    // set guided_mode to velocity and acceleration controller
+    // 设置guided_mode为速度加速度控制器
     guided_mode = SubMode::VelAccel;
 
-    // initialise position controller
+    // 初始化位置控制器
     pva_control_start();
 }
 
@@ -713,8 +709,7 @@ void ModeGuided::set_angle(const Quaternion &attitude_quat, const Vector3f &ang_
 #endif
 }
 
-// takeoff_run - takeoff in guided mode
-//      called by guided_run at 100hz or more
+// 在guided模式下起飞，以大于100Hz运行
 void ModeGuided::takeoff_run()
 {
     auto_takeoff.run();
@@ -822,7 +817,7 @@ void ModeGuided::accel_control_run()
     attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), auto_yaw.get_heading());
 }
 
-// velaccel_control_run - runs the guided velocity and acceleration controller
+// guided模式下的速度加速度控制器
 // called from guided_run
 void ModeGuided::velaccel_control_run()
 {
@@ -877,7 +872,7 @@ void ModeGuided::velaccel_control_run()
     attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), auto_yaw.get_heading());
 }
 
-// pause_control_run - runs the guided mode pause controller
+// guided模式下的pause控制器
 // called from guided_run
 void ModeGuided::pause_control_run()
 {
