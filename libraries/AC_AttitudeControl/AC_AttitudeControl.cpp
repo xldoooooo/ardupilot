@@ -1028,7 +1028,7 @@ void AC_AttitudeControl::attitude_controller_run_quat()
     _ang_vel_body_rads = ang_vel_body_rads;
 }
 
-// thrust_heading_rotation_angles - calculates two ordered rotations to move the attitude_body quaternion to the attitude_target quaternion.
+// 计算两个有序的旋转，将当前姿态旋转到期望姿态
 // The maximum error in the yaw axis is limited based on static output saturation.
 void AC_AttitudeControl::thrust_heading_rotation_angles(Quaternion& attitude_target, const Quaternion& attitude_body, Vector3f& attitude_error_rad, float& thrust_angle_rad, float& thrust_error_angle_rad) const
 {
@@ -1051,31 +1051,31 @@ void AC_AttitudeControl::thrust_heading_rotation_angles(Quaternion& attitude_tar
     }
 }
 
-// thrust_vector_rotation_angles - calculates two ordered rotations to move the attitude_body quaternion to the attitude_target quaternion.
-// The first rotation corrects the thrust vector and the second rotation corrects the heading vector.
+// 计算两个有序的旋转，将当前姿态旋转到期望姿态
+// 第一个旋转修正推力方向，第二个旋转修正航向角
 void AC_AttitudeControl::thrust_vector_rotation_angles(const Quaternion& attitude_target, const Quaternion& attitude_body, Quaternion& thrust_vector_correction, Vector3f& attitude_error_rad, float& thrust_angle_rad, float& thrust_error_angle_rad) const
 {
-    // The direction of thrust is [0,0,-1] is any body-fixed frame, inc. body frame and target frame.
+    // 机体系下的推力方向
     const Vector3f thrust_vector_up{0.0f, 0.0f, -1.0f};
 
     // attitude_target and attitude_body are passive rotations from target / body frames to the NED frame
     
-    // Rotating [0,0,-1] by attitude_target expresses (gets a view of) the target thrust vector in the inertial frame
-    const Vector3f att_target_thrust_vec = attitude_target * thrust_vector_up; // target thrust vector
+    // 惯性系下的期望推力方向
+    const Vector3f att_target_thrust_vec = attitude_target * thrust_vector_up;
 
-    // Rotating [0,0,-1] by attitude_target expresses (gets a view of) the current thrust vector in the inertial frame
-    const Vector3f att_body_thrust_vec = attitude_body * thrust_vector_up; // current thrust vector
+    // 惯性系下的实际推力方向
+    const Vector3f att_body_thrust_vec = attitude_body * thrust_vector_up;
 
-    // the dot product is used to calculate the current lean angle for use of external functions
+    // 计算实际推力方向与竖直方向的夹角，即推力倾角
     thrust_angle_rad = acosf(constrain_float(thrust_vector_up * att_body_thrust_vec,-1.0f,1.0f));
 
-    // the cross product of the desired and target thrust vector defines the rotation vector
+    // 计算从当前推力方向到期望推力方向的旋转方向
     Vector3f thrust_vec_cross = att_body_thrust_vec % att_target_thrust_vec;
 
-    // the dot product is used to calculate the angle between the target and desired thrust vectors
+    // 计算当前推力方向与期望推力方向的夹角
     thrust_error_angle_rad = acosf(constrain_float(att_body_thrust_vec * att_target_thrust_vec, -1.0f, 1.0f));
 
-    // Normalize the thrust rotation vector
+    // 归一化从当前推力方向到期望推力方向的旋转方向
     float thrust_vector_length = thrust_vec_cross.length();
     if (is_zero(thrust_vector_length) || is_zero(thrust_error_angle_rad)) {
         thrust_vec_cross = thrust_vector_up;
@@ -1083,22 +1083,20 @@ void AC_AttitudeControl::thrust_vector_rotation_angles(const Quaternion& attitud
         thrust_vec_cross /= thrust_vector_length;
     }
 
-    // thrust_vector_correction is defined relative to the body frame but its axis `thrust_vec_cross` was computed in
-    // the inertial frame. First rotate it by the inverse of attitude_body to express it back in the body frame
+    // 计算机体系下从当前推力方向到期望推力方向的旋转向量，并转为四元数
     thrust_vec_cross = attitude_body.inverse() * thrust_vec_cross;
     thrust_vector_correction.from_axis_angle(thrust_vec_cross, thrust_error_angle_rad);
 
-    // calculate the angle error in x and y.
+    // 计算旋转向量对应的 x 和 y 分量
     Vector3f rotation_rad;
     thrust_vector_correction.to_axis_angle(rotation_rad);
     attitude_error_rad.x = rotation_rad.x;
     attitude_error_rad.y = rotation_rad.y;
 
-    // calculate the remaining rotation required after thrust vector is rotated transformed to the body frame
-    // heading_vector_correction
+    // 计算余下的航向角修正（机体系下）
     Quaternion heading_vec_correction_quat = thrust_vector_correction.inverse() * attitude_body.inverse() * attitude_target;
 
-    // calculate the angle error in z (x and y should be zero here).
+    // 计算旋转向量的 z 分量
     heading_vec_correction_quat.to_axis_angle(rotation_rad);
     attitude_error_rad.z = rotation_rad.z;
 }

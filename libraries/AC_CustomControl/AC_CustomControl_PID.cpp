@@ -335,11 +335,11 @@ AC_CustomControl_PID::AC_CustomControl_PID(AC_CustomControl& frontend, AP_AHRS_V
 // 运行控制器，生成力矩输出
 Vector3f AC_CustomControl_PID::update()
 {
-      // 根据电机状态重置控制器，模拟飞行器起飞前和飞行中切换控制器的情况
+    // 根据电机状态重置控制器，模拟飞行器起飞前和飞行中切换控制器的情况
     switch (_motors->get_spool_state()) {
         case AP_Motors::SpoolState::SHUT_DOWN:
         case AP_Motors::SpoolState::GROUND_IDLE:
-            // 我们仍然在地面上。重置自定义控制器以避免积分器等的累积
+            // 我们仍然在地面上，重置自定义控制器以避免积分器等的累积
             reset();
             break;
         case AP_Motors::SpoolState::THROTTLE_UNLIMITED:
@@ -350,18 +350,17 @@ Vector3f AC_CustomControl_PID::update()
     }
 
     // 在这里运行自定义控制器
-     Quaternion attitude_body, attitude_target;
+    Quaternion attitude_body, attitude_target;
     _ahrs->get_quat_body_to_ned(attitude_body);
 
     attitude_target = _att_control->get_attitude_target_quat();
     Vector3f attitude_error;
-    float _thrust_angle_rad, _thrust_error_angle_rad;
+    float _thrust_angle_rad, _thrust_error_angle_rad; // _thrust_angle_rad为推力倾角，_thrust_error_angle_rad为期望推力与实际推力的夹角
     _att_control->thrust_heading_rotation_angles(attitude_target, attitude_body, attitude_error, _thrust_angle_rad, _thrust_error_angle_rad);
 
-    // recalculate ang vel feedforward from attitude target model
-    // rotation from the target frame to the body frame
+    // 计算从期望姿态到实际姿态的旋转
     Quaternion rotation_target_to_body = attitude_body.inverse() * attitude_target;
-    // target angle velocity vector in the body frame
+    // 计算机体系下的期望角速度（前馈）
     Vector3f ang_vel_body_feedforward = rotation_target_to_body * _att_control->get_attitude_target_ang_vel();
 
     // 运行姿态控制器，得到期望角速度
@@ -370,7 +369,7 @@ Vector3f AC_CustomControl_PID::update()
     target_rate[1] = _p_angle_pitch2.kP() * attitude_error.y + ang_vel_body_feedforward[1];
     target_rate[2] = _p_angle_yaw2.kP() * attitude_error.z + ang_vel_body_feedforward[2];
 
-    // 运行角速度控制器
+    // 运行角速度PID控制器
     Vector3f gyro_latest = _ahrs->get_gyro_latest();
     Vector3f motor_out;
     motor_out.x = _pid_atti_rate_roll.update_all(target_rate[0], gyro_latest[0], _dt, false);

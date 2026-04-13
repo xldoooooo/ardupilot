@@ -40,6 +40,8 @@ const AP_Param::GroupInfo AC_CustomControl::var_info[] = {
     // parameters for INDI controller
     AP_SUBGROUPVARPTR(_backend, "3_", 8, AC_CustomControl, _backend_var_info[2]),
 
+    // parameters for Adaptive controller
+    AP_SUBGROUPVARPTR(_backend, "4_", 9, AC_CustomControl, _backend_var_info[3]),
 
     AP_GROUPEND
 };

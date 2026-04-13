@@ -1,14 +1,11 @@
 #include "Copter.h"
 
-/*
- * Init and run calls for stabilize flight mode
- */
+// stabilize模式的初始化与运行
 
-// stabilize_run - runs the main stabilize controller
-// should be called at 100hz or more
+// 以100Hz以上运行stabilize模式
 void ModeStabilize::run()
 {
-    // apply simple mode transform to pilot inputs
+    // 对遥控输入进行simple mode变换
     update_simple_mode();
 
     // convert pilot input to lean angles

@@ -16,7 +16,7 @@ const AP_Param::GroupInfo AC_CustomControl_Adaptive::var_info[] = {
     AP_SUBGROUPINFO(_p_angle_roll,  "ANG_RLL_", 1, AC_CustomControl_Adaptive, AC_P),
     AP_SUBGROUPINFO(_p_angle_pitch, "ANG_PIT_", 2, AC_CustomControl_Adaptive, AC_P),
     AP_SUBGROUPINFO(_p_angle_yaw,   "ANG_YAW_", 3, AC_CustomControl_Adaptive, AC_P),
-    AP_GROUPINFO("GAMMA",    4, AC_CustomControl_Adaptive, _gamma,    2.0f),
+    AP_GROUPINFO("GAMMA",    4, AC_CustomControl_Adaptive, _gamma,    0.5f),
     AP_GROUPINFO("DEADZONE", 5, AC_CustomControl_Adaptive, _deadzone, 0.02f),
     AP_GROUPINFO("SIGMA",    6, AC_CustomControl_Adaptive, _sigma,    0.0f),
     AP_GROUPEND
@@ -28,9 +28,9 @@ AC_CustomControl_Adaptive::AC_CustomControl_Adaptive(AC_CustomControl& frontend,
                                                      AP_MotorsMulticopter*& motors,
                                                      float dt)
     : AC_CustomControl_Backend(frontend, ahrs, att_control, motors, dt),
-      _p_angle_roll(AC_ATTITUDE_CONTROL_ANGLE_P * 0.9f),
-      _p_angle_pitch(AC_ATTITUDE_CONTROL_ANGLE_P * 0.9f),
-      _p_angle_yaw(AC_ATTITUDE_CONTROL_ANGLE_P * 0.9f)
+      _p_angle_roll(AC_ATTITUDE_CONTROL_ANGLE_P),
+      _p_angle_pitch(AC_ATTITUDE_CONTROL_ANGLE_P),
+      _p_angle_yaw(AC_ATTITUDE_CONTROL_ANGLE_P)
 {
     _dt = dt;
     AP_Param::setup_object_defaults(this, var_info);
@@ -70,7 +70,7 @@ void AC_CustomControl_Adaptive::build_regressor(const Vector3f &omega, float fc,
     Phi[2][5] = fc;
 }
 
-// 带死区和投影的自适应更新律
+// 带死区的自适应更新律
 void AC_CustomControl_Adaptive::adapt_update(const float Phi[3][6], float dt,
                                              const Vector3f &e, const Vector3f &tau_des)
 {
@@ -111,25 +111,6 @@ void AC_CustomControl_Adaptive::adapt_update(const float Phi[3][6], float dt,
     // 更新 d_hat
     Vector3f dd = - (e + _d_hat * sigma) * gamma;
     _d_hat += dd * dt;
-
-    // ----- 投影 -----
-    for (uint8_t i = 0; i < 3; i++) {
-        _Upsilon_hat[i][i] = constrain_float(_Upsilon_hat[i][i], 0.5f, 2.0f);
-        for (uint8_t j = 0; j < 3; j++) {
-            if (i != j) {
-                _Upsilon_hat[i][j] = constrain_float(_Upsilon_hat[i][j], -1.0f, 1.0f);
-            }
-        }
-    }
-    for (uint8_t i = 0; i < 3; i++) {
-        _theta_hat[i] = constrain_float(_theta_hat[i], -0.99f, 0.99f);
-    }
-    for (uint8_t i = 3; i < 6; i++) {
-        _theta_hat[i] = constrain_float(_theta_hat[i], -10.0f, 10.0f);
-    }
-    for (uint8_t i = 0; i < 3; i++) {
-        _d_hat[i] = constrain_float(_d_hat[i], -0.5f, 0.5f);
-    }
 }
 
 // 主控制更新函数
@@ -139,15 +120,13 @@ Vector3f AC_CustomControl_Adaptive::update()
     Quaternion attitude_body;
     _ahrs->get_quat_body_to_ned(attitude_body);
 
-    Vector3f gyro = _ahrs->get_gyro_latest();
-
-    // 获取期望姿态和期望角速度前馈
+    // 获取期望姿态和机体系下的期望角速度前馈
     Quaternion attitude_target = _att_control->get_attitude_target_quat();
     Vector3f ang_vel_target = _att_control->get_attitude_target_ang_vel();
     Quaternion rot_target_to_body = attitude_body.inverse() * attitude_target;
     Vector3f ang_vel_ff = rot_target_to_body * ang_vel_target;
 
-    // 姿态误差
+    // 获取姿态误差、推力倾角、期望推力与实际推力的夹角
     Vector3f attitude_error;
     float thrust_angle_rad, thrust_error_angle_rad;
     _att_control->thrust_heading_rotation_angles(attitude_target, attitude_body,
@@ -155,14 +134,23 @@ Vector3f AC_CustomControl_Adaptive::update()
                                                   thrust_angle_rad,
                                                   thrust_error_angle_rad);
 
-    // 期望角速度
+    // 生成期望角速度
     Vector3f target_rate;
     target_rate.x = _p_angle_roll.kP() * attitude_error.x + ang_vel_ff.x;
     target_rate.y = _p_angle_pitch.kP() * attitude_error.y + ang_vel_ff.y;
     target_rate.z = _p_angle_yaw.kP() * attitude_error.z + ang_vel_ff.z;
 
     // 角速度跟踪误差
-    Vector3f rate_error = target_rate - gyro;
+    Vector3f gyro = _ahrs->get_gyro_latest();
+
+    // ========== 参考模型（一阶低通滤波） ==========
+    // 参考模型状态：_omega_ref
+    static Vector3f _omega_ref;
+    float tau_model = 0.05f;          // 参考模型时间常数 (s)，可调参数
+    float alpha = _dt / (tau_model + _dt);
+    // 参考模型更新：一阶滤波，跟踪 target_rate
+    _omega_ref = _omega_ref * (1.0f - alpha) + target_rate * alpha;
+    Vector3f rate_error = _omega_ref - gyro;
 
     // 设定的油门值
     float fc = _motors->get_throttle();
@@ -182,7 +170,7 @@ Vector3f AC_CustomControl_Adaptive::update()
         for (uint8_t j = 0; j < 6; j++) {
             sum += Phi[i][j] * _theta_hat[j];
         }
-        tau_nom[i] = -sum - _d_hat[i] - 0.5f * rate_error[i];
+        tau_nom[i] = -sum - _d_hat[i] + 0.135f * rate_error[i];
     }
 
     // 求逆解算实际力矩
