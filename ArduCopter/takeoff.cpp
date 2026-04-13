@@ -110,8 +110,8 @@ void Mode::_TakeOff::do_pilot_takeoff_ms(float pilot_climb_rate_ms)
     }
 }
 
-// auto_takeoff_run - controls the vertical position controller during the process of taking off in auto modes
-// auto_takeoff_complete set to true when target altitude is within 10% of the take off altitude and less than 50% max climb rate
+// 自动起飞，运行竖直方向位置控制
+// 当达到起飞高度的90%且速度小于最大爬升率的50%时，将auto_takeoff_complete置为true
 void _AutoTakeoff::run()
 {
     const auto &g2 = copter.g2;

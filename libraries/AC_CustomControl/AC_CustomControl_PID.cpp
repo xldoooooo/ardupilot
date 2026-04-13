@@ -5,7 +5,7 @@
 #include "AC_CustomControl_PID.h"
 #include "AC_AttitudeControl/AC_AttitudeControl_Multi.h"
 
-// table of user settable parameters
+// 用户可调节的参数
 const AP_Param::GroupInfo AC_CustomControl_PID::var_info[] = {
     // @Param: ANG_RLL_P
     // @DisplayName: Roll axis angle controller P gain
@@ -318,6 +318,7 @@ const AP_Param::GroupInfo AC_CustomControl_PID::var_info[] = {
     AP_GROUPEND
 };
 
+// 初始化控制器，设置默认参数
 AC_CustomControl_PID::AC_CustomControl_PID(AC_CustomControl& frontend, AP_AHRS_View*& ahrs, AC_AttitudeControl*& att_control, AP_MotorsMulticopter*& motors, float dt) :
     AC_CustomControl_Backend(frontend, ahrs, att_control, motors, dt),
     _p_angle_roll2(AC_ATTITUDE_CONTROL_ANGLE_P * 0.90f),
@@ -331,47 +332,44 @@ AC_CustomControl_PID::AC_CustomControl_PID(AC_CustomControl& frontend, AP_AHRS_V
     AP_Param::setup_object_defaults(this, var_info);
 }
 
+// 运行控制器，生成力矩输出
 Vector3f AC_CustomControl_PID::update()
 {
-      // reset controller based on spool state
+    // 根据电机状态重置控制器，模拟飞行器起飞前和飞行中切换控制器的情况
     switch (_motors->get_spool_state()) {
         case AP_Motors::SpoolState::SHUT_DOWN:
         case AP_Motors::SpoolState::GROUND_IDLE:
-            // We are still at the ground. Reset custom controller to avoid
-            // build up, ex: integrator
+            // 我们仍然在地面上，重置自定义控制器以避免积分器等的累积
             reset();
             break;
-
         case AP_Motors::SpoolState::THROTTLE_UNLIMITED:
         case AP_Motors::SpoolState::SPOOLING_UP:
         case AP_Motors::SpoolState::SPOOLING_DOWN:
-            // we are off the ground
+            // 我们已经离开地面了，继续使用当前控制器状态
             break;
     }
 
-    // run custom controller after here
-     Quaternion attitude_body, attitude_target;
+    // 在这里运行自定义控制器
+    Quaternion attitude_body, attitude_target;
     _ahrs->get_quat_body_to_ned(attitude_body);
 
     attitude_target = _att_control->get_attitude_target_quat();
-    // This vector represents the angular error to rotate the thrust vector using x and y and heading using z
     Vector3f attitude_error;
-    float _thrust_angle_rad, _thrust_error_angle_rad;
+    float _thrust_angle_rad, _thrust_error_angle_rad; // _thrust_angle_rad为推力倾角，_thrust_error_angle_rad为期望推力与实际推力的夹角
     _att_control->thrust_heading_rotation_angles(attitude_target, attitude_body, attitude_error, _thrust_angle_rad, _thrust_error_angle_rad);
 
-    // recalculate ang vel feedforward from attitude target model
-    // rotation from the target frame to the body frame
+    // 计算从期望姿态到实际姿态的旋转
     Quaternion rotation_target_to_body = attitude_body.inverse() * attitude_target;
-    // target angle velocity vector in the body frame
+    // 计算机体系下的期望角速度（前馈）
     Vector3f ang_vel_body_feedforward = rotation_target_to_body * _att_control->get_attitude_target_ang_vel();
 
-    // run attitude controller
+    // 运行姿态控制器，得到期望角速度
     Vector3f target_rate;
     target_rate[0] = _p_angle_roll2.kP() * attitude_error.x + ang_vel_body_feedforward[0];
     target_rate[1] = _p_angle_pitch2.kP() * attitude_error.y + ang_vel_body_feedforward[1];
     target_rate[2] = _p_angle_yaw2.kP() * attitude_error.z + ang_vel_body_feedforward[2];
 
-    // run rate controller
+    // 运行角速度PID控制器
     Vector3f gyro_latest = _ahrs->get_gyro_latest();
     Vector3f motor_out;
     motor_out.x = _pid_atti_rate_roll.update_all(target_rate[0], gyro_latest[0], _dt, false);
@@ -381,10 +379,10 @@ Vector3f AC_CustomControl_PID::update()
     return motor_out;
 }
 
-// This example uses exact same controller architecture as ArduCopter attitude controller without all the safe guard against saturation.
-// The gains are scaled 0.9 times to better detect switch over response. 
-// Note that integrator are not reset correctly as it is done in reset_main_att_controller inside AC_CustomControl.cpp
-// This is done intentionally to demonstrate switch over performance of two exact controller with different reset handling.
+// 这个示例使用与ArduCopter姿态控制器完全相同的控制器架构，但没有所有针对饱和的安全保护。
+// 增益缩放为0.9倍，以更好地检测切换响应。
+// 注意，积分器没有像在AC_CustomControl.cpp中的reset_main_att_controller中那样正确重置。
+// 这是故意为之，以演示两个具有不同重置处理的完全相同控制器的切换性能。
 void AC_CustomControl_PID::reset(void)
 {
     _pid_atti_rate_roll.reset_I();
