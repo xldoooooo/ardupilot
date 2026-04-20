@@ -334,10 +334,10 @@ public:
     // This represents the desired orientation in NED earth frame.
     Quaternion get_attitude_target_quat() const { return _attitude_target; }
 
-    // Return the angular velocity of the target (setpoint) [rad/s] in the target attitude frame
+    // 返回期望姿态系下的期望角速度（rad/s）
     const Vector3f& get_attitude_target_ang_vel() const { return _ang_vel_target_rads;}
 
-    // Return the angle between the target thrust vector and the current thrust vector.
+    // 返回期望推力矢量与当前推力矢量的夹角
     float get_att_error_angle_deg() const { return degrees(_thrust_error_angle_rad); }
 
     // Returns the current attitude target as 321 Euler angles in centidegrees.

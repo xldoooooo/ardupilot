@@ -8,6 +8,7 @@
 #include "AC_CustomControl_Empty.h"
 #include "AC_CustomControl_PID.h"
 #include "AC_CustomControl_INDI.h"
+#include "AC_CustomControl_Adaptive.h"
 #include <GCS_MAVLink/GCS.h>
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Scheduler/AP_Scheduler.h>
@@ -74,6 +75,10 @@ void AC_CustomControl::init(void)
         case CustomControlType::CONT_INDI:
             _backend = NEW_NOTHROW AC_CustomControl_INDI(*this, _ahrs, _att_control, _motors, _dt);
             _backend_var_info[get_type()] = AC_CustomControl_INDI::var_info;
+            break;
+        case CustomControlType::CONT_ADAPTIVE:
+            _backend = NEW_NOTHROW AC_CustomControl_Adaptive(*this, _ahrs, _att_control, _motors, _dt);
+            _backend_var_info[get_type()] = AC_CustomControl_Adaptive::var_info;
             break;
         default:
             return;

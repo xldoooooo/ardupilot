@@ -295,7 +295,7 @@ void AC_AttitudeControl::rate_controller_target_reset()
     _angle_P_scale = VECTORF_111;
 }
 
-// Reduce attitude control gains while landed to stop ground resonance
+// 着陆时减小姿态控制增益，用于减少地面共振
 void AC_AttitudeControl::landed_gain_reduction(bool landed)
 {
     if (is_positive(_input_tc)) {

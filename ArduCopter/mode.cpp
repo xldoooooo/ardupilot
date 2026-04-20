@@ -492,18 +492,18 @@ bool Copter::set_mode(const uint8_t new_mode, const ModeReason reason)
     return copter.set_mode(static_cast<Mode::Number>(new_mode), reason);
 }
 
-// update_flight_mode - calls the appropriate attitude controllers based on flight mode
-// called at 100hz or more
+// 更新飞行模式，并根据飞行模式选用姿态控制器
+// 以100Hz以上运行
 void Copter::update_flight_mode()
 {
 #if AP_RANGEFINDER_ENABLED
     surface_tracking.invalidate_for_logging();  // invalidate surface tracking alt, flight mode will set to true if used
 #endif
-    attitude_control->landed_gain_reduction(copter.ap.land_complete); // Adjust gains when landed to attenuate ground oscillation
+    attitude_control->landed_gain_reduction(copter.ap.land_complete); // 着陆时减小增益，进而减少地面共振
 
-    // set ekf reset handling method
+    // 设置EKF重置的处理方法
     pos_control->set_reset_handling_method(flightmode->move_vehicle_on_ekf_reset() ? AC_PosControl::EKFResetMethod::MoveVehicle : AC_PosControl::EKFResetMethod::MoveTarget);
-
+    // 运行飞行模式
     flightmode->run();
 }
 

@@ -14,7 +14,7 @@
 #include <AP_Motors/AP_MotorsMulticopter.h>
 
 #ifndef CUSTOMCONTROL_MAX_TYPES
-#define CUSTOMCONTROL_MAX_TYPES 4
+#define CUSTOMCONTROL_MAX_TYPES 5
 #endif
 
 class AC_CustomControl_Backend;
@@ -51,6 +51,7 @@ protected:
         CONT_EMPTY           = 1,
         CONT_PID             = 2,
         CONT_INDI            = 3,
+        CONT_ADAPTIVE        = 4,   // 新增自适应控制器
     };            // controller that should be used     
 
     enum class  CustomControlOption {
