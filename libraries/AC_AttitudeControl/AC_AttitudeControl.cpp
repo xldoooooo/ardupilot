@@ -285,6 +285,7 @@ void AC_AttitudeControl::reset_rate_controller_I_terms_smoothly()
     get_rate_yaw_pid().relax_integrator(0.0, _dt_s, AC_ATTITUDE_RATE_RELAX_TC);
 }
 
+
 // reset the rate controller target loop updates
 void AC_AttitudeControl::rate_controller_target_reset()
 {
