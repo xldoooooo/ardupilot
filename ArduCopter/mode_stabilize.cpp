@@ -1,8 +1,6 @@
 #include "Copter.h"
 
-// stabilize模式的初始化与运行
-
-// 以100Hz以上运行stabilize模式
+// 在Sched loop中运行stabilize模式
 void ModeStabilize::run()
 {
     // 对遥控输入进行simple mode变换

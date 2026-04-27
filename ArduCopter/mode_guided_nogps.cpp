@@ -2,23 +2,17 @@
 
 #if MODE_GUIDED_NOGPS_ENABLED
 
-/*
- * Init and run calls for guided_nogps flight mode
- */
-
-// initialise guided_nogps controller
+// 初始化GUIDED_NOGPS模式
 bool ModeGuidedNoGPS::init(bool ignore_checks)
 {
-    // start in angle control mode
+    // 初始化角度控制器
     ModeGuided::angle_control_start();
     return true;
 }
 
-// guided_run - runs the guided controller
-// should be called at 100hz or more
+// 运行GUIDED角度控制器（以100Hz以上）
 void ModeGuidedNoGPS::run()
 {
-    // run angle controller
     ModeGuided::angle_control_run();
 }
 
