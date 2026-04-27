@@ -335,22 +335,22 @@ bool ModeGuided::set_speed_down_ms(float speed_down_ms)
     return true;
 }
 
-// initialise guided mode's angle controller
+// 初始化GUIDED模式的角度控制器
 void ModeGuided::angle_control_start()
 {
     // set guided_mode to velocity controller
     guided_mode = SubMode::Angle;
 
-    // set vertical speed and acceleration limits
+    // 设置竖直方向速度与加速度的极限
     pos_control->D_set_max_speed_accel_m(wp_nav->get_default_speed_down_ms(), wp_nav->get_default_speed_up_ms(), wp_nav->get_accel_D_mss());
     pos_control->D_set_correction_speed_accel_m(wp_nav->get_default_speed_down_ms(), wp_nav->get_default_speed_up_ms(), wp_nav->get_accel_D_mss());
 
-    // initialise the vertical position controller
+    // 初始化竖直方向位置控制器
     if (!pos_control->D_is_active()) {
         pos_control->D_init_controller();
     }
 
-    // initialise targets
+    // 初始化期望的偏航角
     guided_angle_state.update_time_ms = millis();
     guided_angle_state.attitude_quat.from_euler(Vector3f{0.0, 0.0, attitude_control->get_att_target_euler_rad().z});
     guided_angle_state.ang_vel_body.zero();
@@ -961,8 +961,7 @@ void ModeGuided::posvelaccel_control_run()
     attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), auto_yaw.get_heading());
 }
 
-// angle_control_run - runs the guided angle controller
-// called from guided_run
+// GUIDED模式下的角度控制器
 void ModeGuided::angle_control_run()
 {
     float climb_rate_ms = 0.0f;
