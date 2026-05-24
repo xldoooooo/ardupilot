@@ -10,6 +10,8 @@
 #include <GCS_MAVLink/GCS.h>
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Scheduler/AP_Scheduler.h>
+#include "AC_CustomControl_INDI.h"
+#include "AC_CustomControl_ADRC.h"
 
 // table of user settable parameters
 const AP_Param::GroupInfo AC_CustomControl::var_info[] = {
@@ -34,6 +36,12 @@ const AP_Param::GroupInfo AC_CustomControl::var_info[] = {
     // @Group: 2_
     // @Path: AC_CustomControl_PID.cpp
     AP_SUBGROUPVARPTR(_backend, "2_", 7, AC_CustomControl, _backend_var_info[1]),
+
+    // parameters for INDI controller
+    AP_SUBGROUPVARPTR(_backend, "3_", 8, AC_CustomControl, _backend_var_info[2]),
+
+    // parameters for ADRC controller
+    AP_SUBGROUPVARPTR(_backend, "4_", 9, AC_CustomControl, _backend_var_info[3]),
 
     AP_GROUPEND
 };
@@ -64,6 +72,14 @@ void AC_CustomControl::init(void)
         case CustomControlType::CONT_PID:
             _backend = NEW_NOTHROW AC_CustomControl_PID(*this, _ahrs, _att_control, _motors, _dt);
             _backend_var_info[get_type()] = AC_CustomControl_PID::var_info;
+            break;
+        case CustomControlType::CONT_INDI:
+            _backend = NEW_NOTHROW AC_CustomControl_INDI(*this, _ahrs, _att_control, _motors, _dt);
+            _backend_var_info[get_type()] = AC_CustomControl_INDI::var_info;
+            break;
+        case CustomControlType::CONT_ADRC:
+            _backend = NEW_NOTHROW AC_CustomControl_ADRC(*this, _ahrs, _att_control, _motors, _dt);
+            _backend_var_info[get_type()] = AC_CustomControl_ADRC::var_info;
             break;
         default:
             return;
