@@ -22,6 +22,8 @@ def littlefs(bld, **kw):
         source=['modules/littlefs/lfs.c', 'modules/littlefs/lfs_util.c', 'modules/littlefs/bd/lfs_filebd.c'],
         target='littlefs',
         defines=['LFS_NO_DEBUG', 'LFS_NO_WARN', 'LFS_NO_ERROR', 'LFS_NO_ASSERT'],
-        cflags=['-Wno-format-security', '-Wno-format', '-Wno-format-extra-args', '-Wno-shadow', '-Wno-unused-function', '-Wno-missing-declarations']
+        # -Wno-unused-variable: LFS_NO_ASSERT makes some assert-only locals unused
+        # (e.g. bd in lfs_filebd_erase) under ArduPilot's littlefs build flags.
+        cflags=['-Wno-format-security', '-Wno-format', '-Wno-format-extra-args', '-Wno-shadow', '-Wno-unused-function', '-Wno-missing-declarations', '-Wno-unused-variable']
     )
     return bld.stlib(**kw)
